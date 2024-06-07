@@ -38,6 +38,9 @@ for line in io.BufferedReader(gzip.open(OUTGOING_LINKS_FILE, 'r')):
 
 for line in io.BufferedReader(gzip.open(INCOMING_LINKS_FILE, 'r')):
   line_item = line.decode().rstrip('\n').split('\t')
+  if len(line_item) < 2:
+    print(f'something wrong with this line item: {line_item}',file=sys.stderr)
+    continue
   target_page_id = line_item[0]
   source_page_ids = line_item[1]
   LINKS[target_page_id]['incoming'] = source_page_ids
