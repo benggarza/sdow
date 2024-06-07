@@ -10,7 +10,6 @@ from __future__ import print_function
 import io
 import sys
 import gzip
-from sets import Set
 
 # Validate inputs
 if len(sys.argv) < 4:
@@ -34,24 +33,34 @@ if not LINKS_FILE.endswith('.gz'):
   print('[ERROR] Links file must be gzipped.')
   sys.exit()
 
+print(f'Parsing page file...',file=sys.stderr)
 # Create a set of all page IDs and a dictionary of page titles to their corresponding IDs.
-ALL_PAGE_IDS = Set()
+ALL_PAGE_IDS = {}
 PAGE_TITLES_TO_IDS = {}
 for line in io.BufferedReader(gzip.open(PAGES_FILE, 'r')):
-  [page_id, page_title, _] = line.rstrip('\n').split('\t')
-  ALL_PAGE_IDS.add(page_id)
+  line_item = line.decode().rstrip('\n').split('\t')
+  page_id = line_item[0]
+  page_title = line_item[1]
+  #print(f'{page_id}: {page_title}',file=sys.stderr)
+  ALL_PAGE_IDS[page_id] = 1
   PAGE_TITLES_TO_IDS[page_title] = page_id
 
+print(f'Parsing redirect file...',file=sys.stderr)
 # Create a dictionary of page IDs to the target page ID to which they redirect.
 REDIRECTS = {}
 for line in io.BufferedReader(gzip.open(REDIRECTS_FILE, 'r')):
-  [source_page_id, target_page_id] = line.rstrip('\n').split('\t')
+  line_item = line.decode().rstrip('\n').split('\t')
+  source_page_id = line_item[0]
+  target_page_id = line_item[1]
   REDIRECTS[source_page_id] = target_page_id
 
+print(f'Parsing links file...')
 # Loop through each line in the links file, replacing titles with IDs, applying redirects, and
 # removing nonexistent pages, writing the result to stdout.
 for line in io.BufferedReader(gzip.open(LINKS_FILE, 'r')):
-  [source_page_id, target_page_title] = line.rstrip('\n').split('\t')
+  line_item = line.decode().rstrip('\n').split('\t')
+  source_page_id = line_item[0]
+  target_page_title = line_item[1]
 
   source_page_exists = source_page_id in ALL_PAGE_IDS
 
@@ -62,4 +71,7 @@ for line in io.BufferedReader(gzip.open(LINKS_FILE, 'r')):
 
     if target_page_id is not None and source_page_id != target_page_id:
       target_page_id = REDIRECTS.get(target_page_id, target_page_id)
+      #print(f'{source_page_id} -> {target_page_id}',file=sys.stderr)
       print('\t'.join([source_page_id, target_page_id]))
+  else:
+    print('',file=sys.stderr)

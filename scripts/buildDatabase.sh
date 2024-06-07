@@ -9,7 +9,7 @@ export LC_ALL=C
 # By default, the latest Wikipedia dump will be downloaded. If a download date in the format
 # YYYYMMDD is provided as the first argument, it will be used instead.
 if [[ $# -eq 0 ]]; then
-  DOWNLOAD_DATE=$(wget -q -O- https://dumps.wikimedia.your.org/enwiki/ | grep -Po '\d{8}' | sort | tail -n1)
+  DOWNLOAD_DATE=$(curl https://dumps.wikimedia.your.org/enwiki/ | grep -Po '\d{8}' | sort | tail -n1)
 else
   if [ ${#1} -ne 8 ]; then
     echo "[ERROR] Invalid download date provided: $1"
@@ -22,7 +22,7 @@ fi
 ROOT_DIR=`pwd`
 OUT_DIR="dump"
 
-DOWNLOAD_URL="https://dumps.wikimedia.your.org/enwiki/$DOWNLOAD_DATE"
+DOWNLOAD_URL="https://dumps.wikimedia.org/enwiki/$DOWNLOAD_DATE"
 TORRENT_URL="https://tools.wmflabs.org/dump-torrents/enwiki/$DOWNLOAD_DATE"
 
 SHA1SUM_FILENAME="enwiki-$DOWNLOAD_DATE-sha1sums.txt"
@@ -54,26 +54,14 @@ function download_file() {
         "$TORRENT_URL/$2.torrent"
     else
       echo "[INFO] Downloading $1 file via wget"
-      time wget --progress=dot:giga "$DOWNLOAD_URL/$2"
+      time curl -O "$DOWNLOAD_URL/$2"
     fi
 
-    if [ $1 != sha1sums ]; then
-      echo
-      echo "[INFO] Verifying SHA-1 hash for $1 file"
-      time grep "$2" "$SHA1SUM_FILENAME" | sha1sum -c
-      if [ $? -ne 0 ]; then
-        echo
-        echo "[ERROR] Downloaded $1 file has incorrect SHA-1 hash"
-        rm $2
-        exit 1
-      fi
-    fi
   else
     echo "[WARN] Already downloaded $1 file"
   fi
 }
 
-download_file "sha1sums" $SHA1SUM_FILENAME
 download_file "redirects" $REDIRECTS_FILENAME
 download_file "pages" $PAGES_FILENAME
 download_file "links" $LINKS_FILENAME
@@ -141,9 +129,9 @@ if [ ! -f links.txt.gz ]; then
   time pigz -dc $LINKS_FILENAME \
     | sed -n 's/^INSERT INTO `pagelinks` VALUES (//p' \
     | sed -e 's/),(/\'$'\n/g' \
-    | egrep "^[0-9]+,0,.*,0$" \
+    | egrep "^[0-9]+,0,.*,0," \
     | sed -e $"s/,0,'/\t/g" \
-    | sed -e "s/',0//g" \
+    | sed -e "s/',0,.*//g" \
     | pigz --fast > links.txt.gz.tmp
   mv links.txt.gz.tmp links.txt.gz
 else
